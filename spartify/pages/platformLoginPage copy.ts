@@ -29,8 +29,7 @@ export class PlatformLoginPage {
 
   private msg_pageNotFound = "div[class='error-content'] h3"
   private msg_errorMessage = ".validation-summary-errors > ul > li";
-  private msg_errorEmailMessage = '#Email-error';
-  private msg_Passworderror = '#Password-error';
+  private msg_errorEmailMessage = ".text-danger.field-validation-error > span";
   private msg_PasswordResetLinkSent = ".alert-message > p";
   private msg_error404HeadingMessage = ".headline.text-warning";
 
@@ -70,7 +69,6 @@ export class PlatformLoginPage {
     return this;
   }
 
-
   public step_clickLogin() {
     SpartiUI.button(this.btn_login).forceClick(); // Locate and click the login button       
     return this;
@@ -91,14 +89,8 @@ export class PlatformLoginPage {
     return this;
   }
 
-
   public step_verifyMessage(expectedText: string) {
     SpartiUI.element(this.msg_errorEmailMessage).should('have.text', expectedText)
-    return this;
-  }
-
-  public step_verifyPassworderror(expectedText: string) {
-    SpartiUI.element(this.msg_Passworderror).should('have.text', expectedText)
     return this;
   }
 
@@ -111,9 +103,7 @@ export class PlatformLoginPage {
     SpartiUI.element(".validation-summary-errors > ul > li").should('be.visible');
   }
 
-
   public step_verify_loginPage() {
-
 
     SpartiUI.element('body').then(($body) => {
       if ($body.find(this.lbl_session_warning).length > 0) {
@@ -142,9 +132,6 @@ export class PlatformLoginPage {
     return new PlatformAllInstallationPage()
   }
 
-
-
-
   //Main Login 
   public step_login() {
 
@@ -172,7 +159,4 @@ export class PlatformLoginPage {
     SpartiUI.button(this.btn_logout).click()
     cy.url().should('include', "Login")
   }
-
-
-
 }

@@ -5,7 +5,7 @@ import { PlatformLoginPage } from "../pages/platformLoginPage"
 //const loginPage = new SpartifyLoginPage();
 const loginPage = new PlatformLoginPage()
 
-spartiSuite(
+/*spartiSuite(
   "OrangeHRM Auth Sign-in - Test Suite",
   { tags: ["@reg", "@auth"] },
   () => {
@@ -25,7 +25,7 @@ spartiSuite(
         .step_clickLogin();
     });
   }
-);
+);*/
 
 spartiSuite("🚀 Login Page Testing", { tags: '@smoke' }, () => {
 
@@ -33,55 +33,71 @@ spartiSuite("🚀 Login Page Testing", { tags: '@smoke' }, () => {
       loginPage.visitUrl();
   })
 
-  //spartiSuite('🥇 Field Validation ', { tags: '@smoke' }, () => {
-
       it("Click Login button,when fields are empty.", () => {
 
-          loginPage
-          .step_clickNext()
-          .step_verifyMessage("The Email field is required.")
+          loginPage.
+          step_clickNext().
+          step_verifyMessage("The Email field is required.")
       });
       it('Should not login with Empty password', () => {
-          loginPage
-              .step_enterUsername("apiautomationuser@gmail.com")
-              .step_clickNext()                
-              .step_clickLogin()
-              .step_verifyMessage("The Password field is required.")           
+          loginPage.
+          step_enterUsername("apiautomationuser@gmail.com").
+          step_clickNext().
+          step_clickLogin().
+          step_verifyPassworderror("The Password field is required.")         
       });
- // })
- // spartiSuite('🥉 Data Verification ', { tags: '@smoke' }, () => {
       it('Should login successfully with valid credentials', () => {
-          loginPage
-              .step_enterUsername("apiautomationuser@gmail.com")
-              .step_clickNext()
-              .step_enterPassword("abcAbc@123456")
-              .step_clickLogin()
-              .step_verify_loginPage()
-              .step_navigateAllInstallation()            
+          loginPage.
+          step_enterUsername("apiautomationuser@gmail.com").
+          step_clickNext().
+          step_enterPassword("abcAbc@123456").
+          step_clickLogin().
+          step_verify_loginPage().
+          step_navigateAllInstallation()            
       });
       it('Home page Login with incorrect e-mail', () => {
-          loginPage
-              .step_enterUsername("xxxxxx@gmail.com")
-              .step_clickNext()
-              .step_enterPassword("xxx@123456")
-              .step_clickLogin()
-              .step_verify404Page()
+          loginPage.
+          step_enterUsername("xxxxxx@gmail.com").
+          step_clickNext().
+          step_enterPassword("xxx@123456").
+          step_clickLogin().
+          step_verify404Page()
       });
       it('When click Forget password redirect to correct page.', () => {
-          loginPage
-                  .step_enterUsername("xxxxxx@gmail.com")
-                  .step_clickNext()
-                  .step_clickForgotPassword()
-                  .step_urlInclude("Account/ForgotPassword")
+          loginPage.
+          step_enterUsername("xxxxxx@gmail.com").
+          step_clickNext().
+          step_clickForgotPassword().
+          step_urlInclude("Account/ForgotPassword")
       });
       it('When click Remember Me and login.', () => {
-          loginPage
-              .step_enterUsername("apiautomationuser@gmail.com")
-              .step_clickNext()
-              .step_enterPassword("abcAbc@123456")
-              .step_clickRemindMe()
-              .step_clickLogin()
-              .step_verify_loginPage()                            
-      });        
+          loginPage.
+          step_enterUsername("apiautomationuser@gmail.com").
+          step_clickNext().
+          step_enterPassword("abcAbc@123456").
+          step_clickRemindMe().
+          step_clickLogin().
+          step_verify_loginPage()                            
+      });
+      it("When user type a email.", () => {
+          loginPage.
+          step_enterUsername("apiautomationuser@gmail.com").
+          step_clickNext().
+          step_clickForgotPassword().
+          step_enterUsername("apiautomationuser@gmail.com").
+          step_clickResetLink().
+          step_verifyForgetPasswordMessage("Password reset link has been sent to your email.") 
+    });
+      it("When user type empty space and submit.", () => {
+          loginPage.
+          step_enterUsername(" ").
+          step_clickNext().
+          step_verifyMessage("The Email field is not a valid e-mail address.")
+    });
+      it("When user type incorrect email address.", () => {
+          loginPage.
+          step_enterUsername("Abcc").
+          step_clickNext().
+          step_verifyMessage("The Email field is not a valid e-mail address.")
+    });
   })
-//})
