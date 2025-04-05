@@ -1,0 +1,185 @@
+name: Spartify Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+   runs-on: ubuntu-latest
+   container:
+     image: mudith215/spartify-builder:1.2
+   steps:
+     - name: Checkout code
+       uses: actions/checkout@v4
+
+     - name: Cache dependencies
+       uses: actions/cache@v4
+       with:
+         path: |
+           ~/.npm
+           node_modules
+         key: build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+     - name: Install dependencies
+       env:
+        SPARTIFY_KEY: ${{ secrets.SPARTIFY_KEY != '' && secrets.SPARTIFY_KEY || env.SPARTIFY_KEY }}
+       run: npm run initialize --legacy-peer-deps --omit=optional
+
+     - name: Upload workspace
+       uses: actions/upload-artifact@v4
+       with:
+         name: workspace
+         path: |
+           ~/.npm
+           node_modules
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        shard: [0, 1]
+    container: cypress/browsers:node-20.17.0-chrome-128.0.6613.119-1-ff-130.0-edge-128.0.2739.63-1
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Restore Workspace Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: ~/.npm
+
+      - name: Run Spartify Tests
+        uses: cypress-io/github-action@v5
+        with:
+          config-file: spartify.config.ts
+          install-command: npm run initialize
+          command: npm run sp:run:test
+ 
+        env:
+          SPLIT: ${{ strategy.job-total }}
+          SPLIT_INDEX: ${{ strategy.job-index }}
+          SPARTIFY_KEY: ${{ secrets.SPARTIFY_KEY != '' && secrets.SPARTIFY_KEY || env.SPARTIFY_KEY }}
+        continue-on-error: true
+
+      - name: Create report directories
+        run: |
+          mkdir -p spartify-report/report
+          mkdir -p spartify-report/report-${{ strategy.job-index }}
+
+      - name: Rename report files (Make unique)
+        if: always()
+        run: |
+          if [ -d "spartify-report/report" ] && [ "$(ls -A spartify-report/report)" ]; then
+            mv spartify-report/report/* spartify-report/report-${{ strategy.job-index }}/ || true
+          fi
+          touch spartify-report/report-${{ strategy.job-index }}/.keep
+
+      - name: Upload Spartify Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-report-${{ strategy.job-index }}
+          path: spartify-report/report-${{ strategy.job-index }}
+          if-no-files-found: warn
+
+  merge-reports:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    container: node:20-alpine
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Test Reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cypress-report-*
+          path: spartify-report/
+          merge-multiple: true
+
+      - name: Merge Spartify Reports
+        run: |
+          mkdir -p spartify-report/merged
+          if ls spartify-report/*.json 1>/dev/null 2>&1; then
+            echo "Merging reports..."
+            npx mochawesome-merge "spartify-report/*.json" > spartify-report/merged/report.json
+          else
+            echo '{"stats":{"suites":0,"tests":0,"passes":0,"pending":0,"failures":0},"results":[]}' > spartify-report/merged/report.json
+          fi
+      - name: Upload Merged Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-cypress-reports
+          path: spartify-report/merged/
+
+  upload-report:
+    runs-on: ubuntu-latest
+    needs: merge-reports
+    container:
+      image: alpine:latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4  
+
+      - name: Copy .env to Container
+        run: |
+          if [ -f .env ]; then
+            echo "Copying .env file to container..."
+            cp .env /root/.env
+          else
+            echo "⚠️ Warning: .env file not found!"
+          fi
+
+      - name: Install curl and required utilities
+        run: apk add --no-cache curl bash
+
+      - name: Load .env file if secrets are missing
+        shell: bash
+        run: |
+          # Default to GitHub secrets if available
+          PROJECT_ID="${{ secrets.PROJECT_ID }}"
+          SPARTIFY_KEY="${{ secrets.SPARTIFY_KEY }}"
+
+          # If secrets are empty, try to load from copied .env file
+          if [ -z "$PROJECT_ID" ] || [ -z "$SPARTIFY_KEY" ]; then
+            if [ -f /root/.env ]; then
+              echo "Loading environment variables from .env file..."
+              
+              # Export valid variables while ignoring empty lines and comments
+              export $(grep -v '^#' /root/.env | grep -v '^\s*$' | sed 's/\r$//' | xargs)
+              
+              # Assign them to GitHub env
+              echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+              echo "SPARTIFY_KEY=$SPARTIFY_KEY" >> $GITHUB_ENV
+            else
+              echo "❌ ERROR: .env file is missing!"
+              exit 1
+            fi
+          fi
+
+      - name: Download Merged Report
+        uses: actions/download-artifact@v4
+        with:
+          name: merged-cypress-reports
+          path: spartify-report/merged/
+
+      - name: Upload Merged Report to API
+        run: |
+          API_URL="https://dev-portal.spartify.io/reports/test-execution-analysis/submit"
+          BUILD_ID="$GITHUB_RUN_ID"
+          PROJECT_ID="$PROJECT_ID"
+          API_KEY="$SPARTIFY_KEY"
+          REPORT_PATH="spartify-report/merged/report.json"
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$API_KEY" ]; then
+            echo "❌ ERROR: Missing PROJECT_ID or SPARTIFY_KEY"
+            exit 1
+          fi
+
+          curl --location --verbose "$API_URL/$PROJECT_ID/$BUILD_ID" \
+           --header "API-KEY: ${API_KEY}" \
+           --form "file=@$REPORT_PATH"
