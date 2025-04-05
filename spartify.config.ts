@@ -11,7 +11,8 @@ export default defineConfig({
     screenshotsFolder: "spartify-report/screenshots",
 
     // ===== test project settings start ==== //
-    baseUrl: "https://opensource-demo.orangehrmlive.com/",
+    //baseUrl: "https://opensource-demo.orangehrmlive.com/",
+    baseUrl: "https://staging-platform.sana-commerce.com/",
 
     // ===== dashboard settings start ==== //
     env: {
