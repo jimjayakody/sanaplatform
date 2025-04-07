@@ -7,5 +7,4 @@ export class PlatformHomePage{
     constructor(){
             this.sidePanel = new PlatformSidePanel()
         }
-
 }
